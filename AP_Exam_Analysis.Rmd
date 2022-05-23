@@ -7,4 +7,91 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+setwd("~/Desktop/R_Projects/Historical_CPI_Trends")
+library(tidyverse)
+library(reticulate)
+use_python("/usr/local/bin/python3")
+knitr::knit_engines$set(python = reticulate::eng_python) 
 ```
+
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+path = "~/Desktop/CATCS_AP_Exams/RCode/"
+
+stem_jobs = pd.read_csv(path+"2011STEM.csv")
+exam_volume = pd.read_csv(path+"2021-ap-exam-volume-by-region_1 (1).csv")
+state_pops = pd.read_csv(path+"nst-est2020-popchg2010-2020.csv")
+est_2021 = pd.read_csv(path+"2021popest.csv")
+stsi = pd.read_csv(path+"STSI_Rankings - STSI_Rankings.csv")
+
+
+
+```
+
+```{python}
+
+stem_jobs = stem_jobs.iloc[0:51, 1:5].reset_index(drop = True)
+stem_jobs["State"] = stem_jobs["State"].str.extract(r"(.*) \([\w][\w]\)", expand=True)
+stem_jobs["Proportion of All Jobs"] = stem_jobs["Proportion of All Jobs"].str.rstrip('%').astype('float') / 100.0
+stem_jobs["2011 STEM Hourly Earnings"] = stem_jobs["2011 STEM Hourly Earnings"].str.replace('$', '').astype(float)
+
+
+exam_volume = exam_volume.iloc[0:51, 0:23].reset_index(drop = True)
+
+state_pops.insert(17, "POPESTIMATE2021", est_2021["POPESTIMATE2021"]) 
+state_pops.insert(29, "NPOPCHG_2021", est_2021["NPOPCHG_2021"]) 
+```
+
+```{python, echo = TRUE}
+exam_volume.sort_values("State", inplace = True)
+exam_volume.reset_index(drop = True, inplace = True)
+state_pops_1020 = state_pops.iloc[5:56, 7:18].reset_index(drop = True)
+short_names = [str(x) for x in list(range(2011, 2022))]
+state_pops_1020.set_axis(short_names, axis=1, inplace=True)
+
+
+for year in short_names:
+  exam_volume[year] = np.divide(exam_volume[year],state_pops_1020[year])
+
+```
+
+```{python}
+stem_on_volume = pd.merge(stem_jobs, exam_volume, on='State', how='left')
+
+print(f"Correlation between Proportion of STEM Jobs in a state and AP Exam Volume in 2011: {stem_on_volume['2011'].corr( stem_on_volume['Proportion of All Jobs'])}")
+
+print(f"Correlation between Proportion of Hourly STEM Earnings in a state and AP Exam Volume in 2011: {stem_on_volume['2011'].corr( stem_on_volume['2011 STEM Hourly Earnings'])}")
+
+```
+
+```{python}
+plt.scatter(stem_on_volume['Proportion of All Jobs'], stem_on_volume['2011'])
+plt.show()
+```
+
+```{python}
+plt.clf()
+plt.scatter(stem_on_volume['2011 STEM Hourly Earnings'], stem_on_volume['2011'])
+plt.show()
+```
+
+```{python}
+ranking_on_volume = pd.merge(stsi, exam_volume, on='State', how='left')
+
+print(f"Correlation between Overall STSI Ranking and AP Exam Volume in 2020: {ranking_on_volume['2020'].corr(ranking_on_volume['2020_Overall_Rank'])}")
+
+print(f"Correlation between Research and Development STSI Ranking and AP Exam Volume in 2020: {ranking_on_volume['2020'].corr(ranking_on_volume['2020_R_And_D_Score'])}")
+
+print(f"Correlation between Research and Development STSI Ranking and AP Exam Volume in 2020: {ranking_on_volume['2020'].corr(ranking_on_volume['2020_Risk_Capital_And_Entrepreneurship_Score'])}")
+
+print(f"Correlation between Research and Development STSI Ranking and AP Exam Volume in 2020: {ranking_on_volume['2020'].corr(ranking_on_volume['2020_Human_Capital_Score'])}")
+
+print(f"Correlation between Research and Development STSI Ranking and AP Exam Volume in 2020: {ranking_on_volume['2020'].corr(ranking_on_volume['2020_Tech_Sci_And_Workforce_Score'])}")
+
+print(f"Correlation between Research and Development STSI Ranking and AP Exam Volume in 2020: {ranking_on_volume['2020'].corr(ranking_on_volume['2020_Tech_Concentration_Score'])}")
+
+```
+
